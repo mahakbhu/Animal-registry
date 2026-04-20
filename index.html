@@ -23,7 +23,13 @@
     .login-card input:focus{border-color:var(--accent);}
     .login-card button{width:100%;font-family:var(--font);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:7px;cursor:pointer;}
     .login-card button:hover{opacity:0.85;}
-    .login-err{font-size:12px;color:var(--danger);margin-top:8px;height:16px;}
+    .login-err{font-size:12px;color:var(--danger);margin-top:8px;min-height:16px;}
+    .auth-tabs{display:flex;margin-bottom:1.5rem;border-bottom:0.5px solid var(--border);}
+    .auth-tab{flex:1;padding:8px;font-family:var(--font);font-size:11px;letter-spacing:0.07em;text-transform:uppercase;background:none;border:none;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-0.5px;}
+    .auth-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+    .login-card input[type="password"]{width:100%;font-family:var(--font);font-size:14px;padding:10px 14px;border:0.5px solid var(--border2);border-radius:7px;background:var(--bg);color:var(--text);outline:none;margin-bottom:12px;text-align:center;}
+    .login-card input[type="password"]:focus{border-color:var(--accent);}
+    .auth-hint{font-size:11px;color:var(--text3);margin-top:10px;}
     #app{display:none;}
     .topbar{display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1.5rem;border-bottom:0.5px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:10;}
     .topbar-left{display:flex;align-items:center;gap:10px;}
@@ -143,11 +149,26 @@
   <svg class="mouse-deco" style="width:80px;top:10%;right:8%;transform:rotate(30deg);" viewBox="0 0 100 130"><ellipse cx="50" cy="85" rx="36" ry="42" fill="#534AB7"/><ellipse cx="28" cy="38" rx="19" ry="23" fill="#534AB7"/><ellipse cx="72" cy="38" rx="19" ry="23" fill="#534AB7"/><ellipse cx="28" cy="37" rx="12" ry="15" fill="#ffb3c6"/><ellipse cx="72" cy="37" rx="12" ry="15" fill="#ffb3c6"/><circle cx="41" cy="82" r="5" fill="#1a1a2e"/><circle cx="59" cy="82" r="5" fill="#1a1a2e"/><ellipse cx="50" cy="93" rx="7" ry="5" fill="#ffb3c6"/><path d="M82 118 Q98 100 100 122" stroke="#534AB7" stroke-width="5" fill="none" stroke-linecap="round"/></svg>
   <svg class="mouse-deco" style="width:90px;bottom:12%;left:7%;transform:rotate(-25deg) scaleX(-1);" viewBox="0 0 100 130"><ellipse cx="50" cy="85" rx="36" ry="42" fill="#534AB7"/><ellipse cx="28" cy="38" rx="19" ry="23" fill="#534AB7"/><ellipse cx="72" cy="38" rx="19" ry="23" fill="#534AB7"/><ellipse cx="28" cy="37" rx="12" ry="15" fill="#ffb3c6"/><ellipse cx="72" cy="37" rx="12" ry="15" fill="#ffb3c6"/><circle cx="41" cy="82" r="5" fill="#1a1a2e"/><circle cx="59" cy="82" r="5" fill="#1a1a2e"/><ellipse cx="50" cy="93" rx="7" ry="5" fill="#ffb3c6"/><path d="M82 118 Q98 100 100 122" stroke="#534AB7" stroke-width="5" fill="none" stroke-linecap="round"/></svg>
   <div class="login-card">
-    <span class="login-mouse">🐭</span>
+    <span class="login-mouse" id="login-icon">🐭</span>
     <h1>Animal Sample Registry</h1>
-    <p>Enter your name to access the shared lab database</p>
-    <input type="text" id="login-name" placeholder="Your name (e.g. Dr. Müller)" maxlength="60" onkeydown="if(event.key==='Enter')doLogin()" />
-    <button onclick="doLogin()">Enter Registry</button>
+    <p style="margin-bottom:1.25rem;">Shared lab database</p>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-signin" onclick="switchAuthTab('signin')">Sign In</button>
+      <button class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">Register</button>
+    </div>
+    <!-- Sign in form -->
+    <div id="form-signin">
+      <input type="text" id="si-name" placeholder="Your name (e.g. Dr. Müller)" maxlength="60" onkeydown="if(event.key==='Enter')doSignIn()" />
+      <input type="password" id="si-password" placeholder="Password" onkeydown="if(event.key==='Enter')doSignIn()" />
+      <button onclick="doSignIn()">Sign In</button>
+    </div>
+    <!-- Register form -->
+    <div id="form-register" style="display:none;">
+      <input type="text" id="reg-name" placeholder="Display name (e.g. Dr. Müller)" maxlength="60" oninput="updateRegIcon()" />
+      <input type="password" id="reg-password" placeholder="Password (min 6 characters)" />
+      <button onclick="doRegister()">Create Account</button>
+      <p class="auth-hint">No email needed. Just a name and password.</p>
+    </div>
     <div class="login-err" id="login-err"></div>
   </div>
 </div>
@@ -160,7 +181,7 @@
     </div>
     <div class="topbar-right">
       <span class="user-pill" id="user-pill"></span>
-      <button class="btn-signout" onclick="doSignOut()">Switch user</button>
+      <button class="btn-signout" onclick="doSignOut()">Sign Out</button>
     </div>
   </div>
   <div class="inner">
