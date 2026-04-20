@@ -37,46 +37,116 @@ let editingId = null;   // UUID of record being edited
 document.addEventListener('DOMContentLoaded', async () => {
   buildSampleGrids();
   document.getElementById('pn-date').value = today();
-  const saved = localStorage.getItem(USER_KEY);
-  if (saved) { currentUser = { name: saved, icon: iconForName(saved) }; await showApp(); }
-  else { hide('loading'); show('login-screen','flex'); }
+
+  // Check for existing Supabase session
+  const { data: { session } } = await db.auth.getSession();
+  if (session) {
+    await loadUserProfile(session.user);
+  } else {
+    hide('loading');
+    show('login-screen', 'flex');
+  }
+
+  // Listen for auth changes (e.g. token refresh)
+  db.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      await loadUserProfile(session.user);
+    } else if (event === 'SIGNED_OUT') {
+      currentUser = null; records = []; notes = []; auditLog = [];
+      hide('app');
+      clearAuthForms();
+      show('login-screen', 'flex');
+    }
+  });
 });
 
-async function doLogin() {
-  const name = document.getElementById('login-name').value.trim();
-  const errEl = document.getElementById('login-err');
-  if (!name || name.length < 2) {
-    errEl.textContent = 'Please enter at least 2 characters.';
-    return;
-  }
-  // Check if name is already taken by a different device/user
-  const existingLocal = localStorage.getItem(USER_KEY);
-  const sameDevice = existingLocal && existingLocal.toLowerCase() === name.toLowerCase();
-  if (!sameDevice) {
-    errEl.textContent = 'Checking name availability…';
-    const { data } = await db.from('audit_log')
-      .select('user_name').ilike('user_name', name).limit(1);
-    if (data && data.length > 0) {
-      errEl.textContent = `"${name}" is already taken. Try adding an initial, e.g. "${name} M."`;
-      return;
-    }
-  }
-  errEl.textContent = '';
-  localStorage.setItem(USER_KEY, name);
-  currentUser = { name, icon: iconForName(name) };
+async function loadUserProfile(authUser) {
+  const { data: profile } = await db.from('profiles').select('display_name').eq('id', authUser.id).single();
+  const name = profile?.display_name || authUser.email;
+  currentUser = { name, icon: iconForName(name), id: authUser.id };
   hide('login-screen');
-  show('loading','flex');
+  show('loading', 'flex');
   await showApp();
 }
 
-function doSignOut() {
-  localStorage.removeItem(USER_KEY);
-  currentUser = null; records = []; notes = []; auditLog = [];
-  hide('app');
-  document.getElementById('login-name').value = '';
+// ── Auth tab toggle ────────────────────────────────────────────────────────────
+function switchAuthTab(tab) {
+  document.getElementById('form-signin').style.display   = tab === 'signin'   ? 'block' : 'none';
+  document.getElementById('form-register').style.display = tab === 'register' ? 'block' : 'none';
+  document.getElementById('tab-signin').classList.toggle('active',   tab === 'signin');
+  document.getElementById('tab-register').classList.toggle('active', tab === 'register');
   document.getElementById('login-err').textContent = '';
-  show('login-screen','flex');
-  document.getElementById('loading').querySelector('.spin').textContent = '🐭';
+}
+
+function updateRegIcon() {
+  const name = document.getElementById('reg-name').value.trim();
+  document.getElementById('login-icon').textContent = name.length > 0 ? iconForName(name) : '🐭';
+}
+
+function clearAuthForms() {
+  ['si-name','si-password','reg-name','reg-password'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('login-err').textContent = '';
+  document.getElementById('login-icon').textContent = '🐭';
+}
+
+// ── Fake email from username (no real email needed) ───────────────────────────
+function nameToEmail(name) {
+  return name.toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    + '@lab.registry';
+}
+
+// ── Sign in ────────────────────────────────────────────────────────────────────
+async function doSignIn() {
+  const name     = document.getElementById('si-name').value.trim();
+  const password = document.getElementById('si-password').value;
+  const errEl    = document.getElementById('login-err');
+  if (!name || !password) { errEl.textContent = 'Please enter your username and password.'; return; }
+  errEl.textContent = 'Signing in…';
+  const { error } = await db.auth.signInWithPassword({ email: nameToEmail(name), password });
+  if (error) {
+    errEl.textContent = error.message.includes('Invalid') ? 'Incorrect username or password.' : error.message;
+    return;
+  }
+  errEl.textContent = '';
+}
+
+// ── Register ───────────────────────────────────────────────────────────────────
+async function doRegister() {
+  const name     = document.getElementById('reg-name').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const errEl    = document.getElementById('login-err');
+
+  if (!name || name.length < 2) { errEl.textContent = 'Display name must be at least 2 characters.'; return; }
+  if (password.length < 6)      { errEl.textContent = 'Password must be at least 6 characters.'; return; }
+
+  // Check name is not taken
+  errEl.textContent = 'Checking name…';
+  const { data: existing } = await db.from('profiles').select('id').ilike('display_name', name).limit(1);
+  if (existing && existing.length > 0) {
+    errEl.textContent = `"${name}" is already taken. Try adding an initial, e.g. "${name} M."`; return;
+  }
+
+  errEl.textContent = 'Creating account…';
+  const fakeEmail = nameToEmail(name);
+  const { data, error } = await db.auth.signUp({ email: fakeEmail, password });
+  if (error) { errEl.textContent = error.message; return; }
+
+  // Save display name to profiles table
+  const { error: profErr } = await db.from('profiles').insert({ id: data.user.id, display_name: name });
+  if (profErr) { errEl.textContent = 'Could not save profile: ' + profErr.message; return; }
+
+  errEl.style.color = 'var(--success)';
+  errEl.textContent = 'Account created! Signing you in…';
+}
+
+// ── Sign out ───────────────────────────────────────────────────────────────────
+async function doSignOut() {
+  await db.auth.signOut();
+  // Auth state change listener handles UI reset
 }
 
 async function showApp() {
