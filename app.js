@@ -2,19 +2,29 @@
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-const SAMPLE_KEYS = ['brain','liver','kidney','blood','spleen','lung','heart','serum','plasma',
-  'dna','rna','muscle','bone_marrow','adipose','pancreas','intestine','csf','urine','feces','skin'];
+const SAMPLE_KEYS = ['brain_fresh_frozen','brain_pfa','liver','kidney','blood','spleen','lung',
+  'heart','serum','plasma','dna','rna','muscle','bone_marrow','adipose','pancreas',
+  'intestine','csf','urine','feces','skin'];
 const SAMPLE_LABELS = {
-  brain:'Brain',liver:'Liver',kidney:'Kidney',blood:'Blood',spleen:'Spleen',
-  lung:'Lung',heart:'Heart',serum:'Serum',plasma:'Plasma',dna:'DNA',rna:'RNA',
-  muscle:'Muscle',bone_marrow:'Bone Marrow',adipose:'Adipose Tissue',
-  pancreas:'Pancreas',intestine:'Intestine',csf:'CSF',urine:'Urine',feces:'Feces',skin:'Skin'
+  brain_fresh_frozen:'Brain (Fresh Frozen)', brain_pfa:'Brain (PFA Fixed)',
+  liver:'Liver', kidney:'Kidney', blood:'Blood', spleen:'Spleen',
+  lung:'Lung', heart:'Heart', serum:'Serum', plasma:'Plasma', dna:'DNA', rna:'RNA',
+  muscle:'Muscle', bone_marrow:'Bone Marrow', adipose:'Adipose Tissue',
+  pancreas:'Pancreas', intestine:'Intestine', csf:'CSF', urine:'Urine', feces:'Feces', skin:'Skin'
 };
 const ALL_SAMPLE_LABELS = Object.values(SAMPLE_LABELS);
 const CHART_COLORS = ['#534AB7','#0F6E56','#993C1D','#185FA5','#854F0B','#993556','#3B6D11','#A32D2D','#5F5E5A','#2B6CB0'];
-const USER_KEY    = 'asr_username';
-const RECALL_KEY  = 'asr_recall';
-const MAX_RECALL  = 5;
+const USER_KEY   = 'asr_username';
+const RECALL_KEY = 'asr_recall';
+const MAX_RECALL = 5;
+
+// ── User icons — same name always gets same icon ───────────────────────────────
+const USER_ICONS = ['🐭','🐹','🐰','🦔','🐿️','🦦','🐇','🦫','🦡','🐾'];
+function iconForName(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffffffff;
+  return USER_ICONS[Math.abs(h) % USER_ICONS.length];
+}
 
 // ── State ──────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -28,18 +38,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   buildSampleGrids();
   document.getElementById('pn-date').value = today();
   const saved = localStorage.getItem(USER_KEY);
-  if (saved) { currentUser = { name: saved }; await showApp(); }
+  if (saved) { currentUser = { name: saved, icon: iconForName(saved) }; await showApp(); }
   else { hide('loading'); show('login-screen','flex'); }
 });
 
 async function doLogin() {
   const name = document.getElementById('login-name').value.trim();
+  const errEl = document.getElementById('login-err');
   if (!name || name.length < 2) {
-    document.getElementById('login-err').textContent = 'Please enter at least 2 characters.';
+    errEl.textContent = 'Please enter at least 2 characters.';
     return;
   }
+  // Check if name is already taken by a different device/user
+  const existingLocal = localStorage.getItem(USER_KEY);
+  const sameDevice = existingLocal && existingLocal.toLowerCase() === name.toLowerCase();
+  if (!sameDevice) {
+    errEl.textContent = 'Checking name availability…';
+    const { data } = await db.from('audit_log')
+      .select('user_name').ilike('user_name', name).limit(1);
+    if (data && data.length > 0) {
+      errEl.textContent = `"${name}" is already taken. Try adding an initial, e.g. "${name} M."`;
+      return;
+    }
+  }
+  errEl.textContent = '';
   localStorage.setItem(USER_KEY, name);
-  currentUser = { name };
+  currentUser = { name, icon: iconForName(name) };
   hide('login-screen');
   show('loading','flex');
   await showApp();
@@ -52,10 +76,11 @@ function doSignOut() {
   document.getElementById('login-name').value = '';
   document.getElementById('login-err').textContent = '';
   show('login-screen','flex');
+  document.getElementById('loading').querySelector('.spin').textContent = '🐭';
 }
 
 async function showApp() {
-  document.getElementById('user-pill').textContent = '🐭 ' + currentUser.name;
+  document.getElementById('user-pill').textContent = currentUser.icon + ' ' + currentUser.name;
   document.getElementById('f-enteredby').value = currentUser.name;
   document.getElementById('pn-author').value   = currentUser.name;
   renderRecallBar();
@@ -621,6 +646,6 @@ function renderAudit(){
   list.innerHTML=filtered.map(a=>{
     const dt=new Date(a.created_at);
     const ts=dt.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+dt.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-    return`<div class="audit-row"><span class="audit-time">${ts}</span><span class="audit-user">${esc(a.user_name||'?')}</span><span class="audit-action"><strong>${labels[a.action]||a.action}</strong> — ${esc(a.detail||'')}</span></div>`;
+    return`<div class="audit-row"><span class="audit-time">${ts}</span><span class="audit-user">${iconForName(a.user_name||'?')} ${esc(a.user_name||'?')}</span><span class="audit-action"><strong>${labels[a.action]||a.action}</strong> — ${esc(a.detail||'')}</span></div>`;
   }).join('');
 }
