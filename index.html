@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Animal Sample Registry</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    :root{--bg:#fff;--bg2:#f5f5f5;--text:#000;--text2:#444;--text3:#888;--border:rgba(0,0,0,0.12);--border2:rgba(0,0,0,0.22);--accent:#534AB7;--accent-bg:#EEEDFE;--accent-text:#3C3489;--success:#0F6E56;--danger:#A32D2D;--info-bg:#E6F1FB;--info-text:#0C447C;--teal-bg:#E1F5EE;--teal-text:#085041;--amber-bg:#FAEEDA;--amber-text:#633806;--font:'JetBrains Mono','Fira Mono',monospace;}
+    html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.5;}
+    #loading{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;gap:12px;}
+    .spin{font-size:44px;animation:wiggle 1s ease-in-out infinite;}
+    @keyframes wiggle{0%,100%{transform:rotate(-12deg);}50%{transform:rotate(12deg);}}
+    #loading span{font-size:11px;color:var(--text2);letter-spacing:0.1em;text-transform:uppercase;}
+    #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);position:relative;overflow:hidden;}
+    .mouse-deco{position:absolute;opacity:0.06;pointer-events:none;}
+    .login-card{background:var(--bg);border:0.5px solid var(--border2);border-radius:14px;padding:2.5rem 2rem;width:100%;max-width:400px;text-align:center;position:relative;z-index:1;}
+    .login-mouse{font-size:52px;display:block;margin-bottom:1rem;animation:bounce 2s ease-in-out infinite;}
+    @keyframes bounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+    .login-card h1{font-size:14px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;}
+    .login-card p{font-size:12px;color:var(--text2);margin-bottom:2rem;}
+    .login-card input{width:100%;font-family:var(--font);font-size:14px;padding:10px 14px;border:0.5px solid var(--border2);border-radius:7px;background:var(--bg);color:var(--text);outline:none;margin-bottom:12px;text-align:center;}
+    .login-card input:focus{border-color:var(--accent);}
+    .login-card button{width:100%;font-family:var(--font);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:7px;cursor:pointer;}
+    .login-card button:hover{opacity:0.85;}
+    .login-err{font-size:12px;color:var(--danger);margin-top:8px;height:16px;}
+    #app{display:none;}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1.5rem;border-bottom:0.5px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:10;}
+    .topbar-left{display:flex;align-items:center;gap:10px;}
+    .topbar-logo{font-size:24px;}
+    .topbar h1{font-size:12px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;}
+    .subtitle{font-size:11px;color:var(--text2);}
+    .topbar-right{display:flex;align-items:center;gap:12px;}
+    .user-pill{font-size:11px;color:var(--text2);padding:4px 10px;background:var(--bg2);border-radius:20px;}
+    .btn-signout{font-family:var(--font);font-size:10px;letter-spacing:0.07em;text-transform:uppercase;padding:5px 12px;background:none;border:0.5px solid var(--border2);border-radius:6px;color:var(--text2);cursor:pointer;}
+    .btn-signout:hover{background:var(--bg2);}
+    .inner{max-width:1400px;margin:0 auto;padding:1.5rem 1.5rem 4rem;}
+    .tabs{display:flex;border-bottom:0.5px solid var(--border);margin-bottom:2rem;flex-wrap:wrap;}
+    .tab{padding:9px 15px;font-size:11px;font-family:var(--font);letter-spacing:0.07em;text-transform:uppercase;background:none;border:none;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-0.5px;}
+    .tab:hover{color:var(--text);}
+    .tab.active{color:var(--text);border-bottom-color:var(--accent);}
+    .panel{display:none;}.panel.active{display:block;}
+    .divider{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin:1.5rem 0 0.75rem;padding-bottom:5px;border-bottom:0.5px solid var(--border);}
+    .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:1rem;}
+    .field{display:flex;flex-direction:column;gap:5px;}
+    .field label{font-size:10px;letter-spacing:0.09em;text-transform:uppercase;color:var(--text2);}
+    input[type="text"],input[type="date"],select,textarea{font-family:var(--font);font-size:13px;padding:8px 10px;background:var(--bg);border:0.5px solid var(--border2);border-radius:6px;color:var(--text);outline:none;width:100%;transition:border-color 0.15s;}
+    input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+    textarea{resize:vertical;min-height:80px;}
+    .recall-bar{background:var(--bg2);border-radius:8px;padding:10px 14px;margin-bottom:1.25rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    .recall-label{font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);white-space:nowrap;}
+    .recall-pill{font-size:11px;padding:4px 12px;border-radius:20px;border:0.5px solid var(--border2);background:var(--bg);color:var(--text2);cursor:pointer;white-space:nowrap;transition:all 0.12s;}
+    .recall-pill:hover{background:var(--accent-bg);color:var(--accent-text);border-color:var(--accent);}
+    .recall-clear{font-family:var(--font);font-size:10px;padding:3px 10px;border-radius:20px;border:0.5px solid var(--border2);background:none;color:var(--text3);cursor:pointer;margin-left:auto;}
+    .recall-clear:hover{color:var(--danger);}
+    .sample-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:6px;margin-bottom:1.25rem;}
+    .sample-cb{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text);cursor:pointer;padding:6px 10px;border:0.5px solid var(--border);border-radius:6px;transition:background 0.12s;user-select:none;}
+    .sample-cb:hover{background:var(--bg2);}
+    .sample-cb input{cursor:pointer;accent-color:var(--accent);width:14px;height:14px;}
+    .btn-primary{font-family:var(--font);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;padding:9px 22px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;}
+    .btn-primary:hover{opacity:0.85;}
+    .btn-secondary{font-family:var(--font);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;padding:8px 16px;background:none;color:var(--text);border:0.5px solid var(--border2);border-radius:6px;cursor:pointer;}
+    .btn-secondary:hover{background:var(--bg2);}
+    .btn-del{background:none;border:none;cursor:pointer;color:var(--text3);font-size:15px;padding:2px 5px;border-radius:4px;}
+    .btn-del:hover{background:#FCEBEB;color:var(--danger);}
+    .btn-edit{background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 5px;border-radius:4px;}
+    .btn-edit:hover{background:var(--accent-bg);color:var(--accent-text);}
+    .tag-wrap{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:6px 10px;border:0.5px solid var(--border2);border-radius:6px;min-height:38px;cursor:text;background:var(--bg);}
+    .tag-wrap input{border:none;outline:none;font-family:var(--font);font-size:13px;background:transparent;color:var(--text);min-width:100px;flex:1;}
+    .tag-pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:4px;background:var(--accent-bg);color:var(--accent-text);}
+    .tag-rm{background:none;border:none;cursor:pointer;font-size:13px;color:inherit;opacity:0.55;padding:0;}
+    .badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:4px;font-weight:500;}
+    .badge-m{background:var(--info-bg);color:var(--info-text);}
+    .badge-f{background:#FBEAF0;color:#72243E;}
+    .badge-u{background:var(--bg2);color:var(--text2);}
+    .chip{display:inline-block;font-size:10px;padding:2px 6px;border-radius:4px;border:0.5px solid var(--border);color:var(--text2);margin:1px;}
+    .chip-cohort{background:var(--accent-bg);color:var(--accent-text);border-color:transparent;}
+    .chip-group{background:var(--teal-bg);color:var(--teal-text);border-color:transparent;}
+    .chip-owner{background:var(--amber-bg);color:var(--amber-text);border-color:transparent;}
+    .chip-entry{background:var(--info-bg);color:var(--info-text);border-color:transparent;}
+    .msg{font-size:12px;letter-spacing:0.03em;height:16px;}
+    .msg.success{color:var(--success);}.msg.danger{color:var(--danger);}
+    .stats-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:2rem;}
+    .stat{background:var(--bg2);border-radius:8px;padding:14px 16px;}
+    .stat-label{font-size:10px;letter-spacing:0.09em;text-transform:uppercase;color:var(--text2);margin-bottom:7px;}
+    .stat-val{font-size:26px;font-weight:500;color:var(--text);line-height:1;}
+    .search-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:1rem;}
+    .search-row>div{display:flex;flex-direction:column;gap:5px;}
+    .filter-lbl{font-size:10px;letter-spacing:0.09em;text-transform:uppercase;color:var(--text2);}
+    .toolbar{display:flex;gap:8px;justify-content:flex-end;margin-bottom:10px;}
+    .table-wrap{overflow-x:auto;border:0.5px solid var(--border);border-radius:8px;}
+    table{width:100%;border-collapse:collapse;font-size:12px;}
+    th{text-align:left;font-size:10px;letter-spacing:0.07em;text-transform:uppercase;color:var(--text2);padding:8px 10px;border-bottom:0.5px solid var(--border);font-weight:400;white-space:nowrap;cursor:pointer;user-select:none;background:var(--bg2);}
+    th:hover{color:var(--text);}
+    th .si{margin-left:3px;opacity:0.35;}
+    th.sa .si,th.sd .si{opacity:1;}
+    td{padding:9px 10px;border-bottom:0.5px solid var(--border);vertical-align:middle;}
+    tr:last-child td{border-bottom:none;}
+    tr:hover td{background:var(--bg2);}
+    .drop-zone{border:1px dashed var(--border2);border-radius:10px;padding:2.5rem 2rem;text-align:center;cursor:pointer;margin-bottom:1rem;}
+    .drop-zone:hover,.drop-zone.drag{background:var(--bg2);}
+    .drop-zone strong{font-size:13px;color:var(--text);font-weight:500;display:block;margin-bottom:6px;}
+    .drop-zone p{font-size:12px;color:var(--text2);}
+    .import-preview{font-size:11px;background:var(--bg2);border-radius:6px;padding:10px 14px;margin-bottom:1rem;white-space:pre;color:var(--text2);max-height:130px;overflow-y:auto;overflow-x:auto;}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:100;padding:1rem;}
+    .modal{background:var(--bg);border-radius:12px;border:0.5px solid var(--border2);padding:2rem;width:100%;max-width:800px;max-height:90vh;overflow-y:auto;}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;}
+    .modal-header h2{font-size:13px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;display:flex;align-items:center;gap:8px;}
+    .modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2);padding:0 4px;line-height:1;}
+    .owner-note{font-size:11px;color:var(--text3);background:var(--bg2);padding:8px 12px;border-radius:6px;margin-bottom:1rem;}
+    .chart-controls{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:1.5rem;}
+    .chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.5rem;margin-bottom:1.5rem;}
+    .chart-card{background:var(--bg);border:0.5px solid var(--border);border-radius:10px;padding:1.25rem 1.5rem;}
+    .chart-card h3{font-size:10px;letter-spacing:0.09em;text-transform:uppercase;color:var(--text2);margin-bottom:1.25rem;font-weight:400;}
+    .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+    .bar-label{font-size:11px;color:var(--text);min-width:100px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;}
+    .bar-track{flex:1;background:var(--bg2);border-radius:3px;height:16px;overflow:hidden;}
+    .bar-fill{height:100%;border-radius:3px;transition:width 0.5s ease;}
+    .bar-count{font-size:11px;color:var(--text2);min-width:28px;}
+    .donut-wrap{display:flex;align-items:center;gap:1.5rem;}
+    .legend-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:12px;}
+    .legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+    .note-card{background:var(--bg);border:0.5px solid var(--border);border-radius:10px;padding:1.1rem 1.25rem;margin-bottom:10px;}
+    .note-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px;gap:10px;}
+    .note-meta{font-size:11px;color:var(--text2);margin-top:3px;}
+    .note-body{font-size:13px;color:var(--text);line-height:1.7;white-space:pre-wrap;}
+    .audit-row{display:flex;gap:12px;padding:9px 0;border-bottom:0.5px solid var(--border);align-items:baseline;font-size:12px;}
+    .audit-time{color:var(--text3);white-space:nowrap;min-width:140px;}
+    .audit-user{color:var(--accent-text);background:var(--accent-bg);padding:1px 7px;border-radius:4px;font-size:10px;white-space:nowrap;}
+    .audit-action{color:var(--text2);flex:1;}
+    .audit-action strong{color:var(--text);font-weight:500;}
+    .empty{text-align:center;padding:3rem;color:var(--text2);font-size:12px;}
+    a.link{color:var(--accent);cursor:pointer;font-size:12px;text-decoration:underline;}
+    @media(max-width:600px){.stats-row{grid-template-columns:1fr 1fr;}.subtitle{display:none;}}
+  </style>
+</head>
+<body>
+<div id="loading"><div class="spin">🐭</div><span>Connecting…</span></div>
+
+<div id="login-screen" style="display:none;">
+  <svg class="mouse-deco" style="width:140px;top:5%;left:3%;transform:rotate(-15deg);" viewBox="0 0 100 130"><ellipse cx="50" cy="85" rx="36" ry="42" fill="#534AB7"/><ellipse cx="28" cy="38" rx="19" ry="23" fill="#534AB7"/><ellipse cx="72" cy="38" rx="19" ry="23" fill="#534AB7"/><ellipse cx="28" cy="37" rx="12" ry="15" fill="#ffb3c6"/><ellipse cx="72" cy="37" rx="12" ry="15" fill="#ffb3c6"/><circle cx="41" cy="82" r="5" fill="#1a1a2e"/><circle cx="59" cy="82" r="5" fill="#1a1a2e"/><ellipse cx="50" cy="93" rx="7" ry="5" fill="#ffb3c6"/><path d="M82 118 Q98 100 100 122" stroke="#534AB7" stroke-width="5" fill="none" stroke-linecap="round"/></svg>
+  <svg class="mouse-deco" style="width:100px;bottom:8%;right:4%;transform:rotate(20deg) scaleX(-1);" viewBox="0 0 100 130"><ellipse cx="50" cy="85" rx="36" ry="42" fill="#534AB7"/><ellipse cx="28" cy="38" rx="19" ry="23" fill="#534AB7"/><ellipse cx="72" cy="38" rx="19" ry="23" fill="#534AB7"/><ellipse cx="28" cy="37" rx="12" ry="15" fill="#ffb3c6"/><ellipse cx="72" cy="37" rx="12" ry="15" fill="#ffb3c6"/><circle cx="41" cy="82" r="5" fill="#1a1a2e"/><circle cx="59" cy="82" r="5" fill="#1a1a2e"/><ellipse cx="50" cy="93" rx="7" ry="5" fill="#ffb3c6"/><path d="M82 118 Q98 100 100 122" stroke="#534AB7" stroke-width="5" fill="none" stroke-linecap="round"/></svg>
+  <svg class="mouse-deco" style="width:80px;top:10%;right:8%;transform:rotate(30deg);" viewBox="0 0 100 130"><ellipse cx="50" cy="85" rx="36" ry="42" fill="#534AB7"/><ellipse cx="28" cy="38" rx="19" ry="23" fill="#534AB7"/><ellipse cx="72" cy="38" rx="19" ry="23" fill="#534AB7"/><ellipse cx="28" cy="37" rx="12" ry="15" fill="#ffb3c6"/><ellipse cx="72" cy="37" rx="12" ry="15" fill="#ffb3c6"/><circle cx="41" cy="82" r="5" fill="#1a1a2e"/><circle cx="59" cy="82" r="5" fill="#1a1a2e"/><ellipse cx="50" cy="93" rx="7" ry="5" fill="#ffb3c6"/><path d="M82 118 Q98 100 100 122" stroke="#534AB7" stroke-width="5" fill="none" stroke-linecap="round"/></svg>
+  <svg class="mouse-deco" style="width:90px;bottom:12%;left:7%;transform:rotate(-25deg) scaleX(-1);" viewBox="0 0 100 130"><ellipse cx="50" cy="85" rx="36" ry="42" fill="#534AB7"/><ellipse cx="28" cy="38" rx="19" ry="23" fill="#534AB7"/><ellipse cx="72" cy="38" rx="19" ry="23" fill="#534AB7"/><ellipse cx="28" cy="37" rx="12" ry="15" fill="#ffb3c6"/><ellipse cx="72" cy="37" rx="12" ry="15" fill="#ffb3c6"/><circle cx="41" cy="82" r="5" fill="#1a1a2e"/><circle cx="59" cy="82" r="5" fill="#1a1a2e"/><ellipse cx="50" cy="93" rx="7" ry="5" fill="#ffb3c6"/><path d="M82 118 Q98 100 100 122" stroke="#534AB7" stroke-width="5" fill="none" stroke-linecap="round"/></svg>
+  <div class="login-card">
+    <span class="login-mouse">🐭</span>
+    <h1>Animal Sample Registry</h1>
+    <p>Enter your name to access the shared lab database</p>
+    <input type="text" id="login-name" placeholder="Your name (e.g. Dr. Müller)" maxlength="60" onkeydown="if(event.key==='Enter')doLogin()" />
+    <button onclick="doLogin()">Enter Registry</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-logo">🐭</span>
+      <div><div style="font-size:12px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;">Animal Sample Registry</div><div class="subtitle">Shared live database</div></div>
+    </div>
+    <div class="topbar-right">
+      <span class="user-pill" id="user-pill"></span>
+      <button class="btn-signout" onclick="doSignOut()">Switch user</button>
+    </div>
+  </div>
+  <div class="inner">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('add')">+ Add Record</button>
+      <button class="tab" onclick="switchTab('import')">Bulk Import</button>
+      <button class="tab" onclick="switchTab('search')">Search &amp; Browse</button>
+      <button class="tab" onclick="switchTab('charts')">Charts</button>
+      <button class="tab" onclick="switchTab('phenotype')">Phenotype Notes</button>
+      <button class="tab" onclick="switchTab('audit')">Audit Log</button>
+    </div>
+
+    <div id="panel-add" class="panel active">
+      <div id="recall-bar" class="recall-bar" style="display:none;">
+        <span class="recall-label">🐭 Recent:</span>
+        <div id="recall-pills" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+        <button class="recall-clear" onclick="clearRecall()">Clear history</button>
+      </div>
+      <p class="divider">Ownership &amp; entry</p>
+      <div class="form-grid">
+        <div class="field"><label>Animal Owner *</label><input type="text" id="f-owner" placeholder="e.g. Dr. Müller" /></div>
+        <div class="field"><label>Entered By</label><input type="text" id="f-enteredby" placeholder="Auto-filled with your name" /></div>
+      </div>
+      <p class="divider">Animal information</p>
+      <div class="form-grid">
+        <div class="field"><label>Animal ID *</label><input type="text" id="f-id" placeholder="e.g. M-2024-041" /></div>
+        <div class="field"><label>Species *</label><select id="f-species"><option value="">Select</option><option>Mouse</option><option>Rat</option><option>Zebrafish</option><option>Rabbit</option><option>Other</option></select></div>
+        <div class="field"><label>Date of Birth *</label><input type="date" id="f-dob" /></div>
+        <div class="field"><label>Gender *</label><select id="f-gender"><option value="">Select</option><option value="M">Male</option><option value="F">Female</option><option value="U">Unknown</option></select></div>
+        <div class="field"><label>Genotype *</label><input type="text" id="f-genotype" placeholder="e.g. WT, KO, Het" /></div>
+        <div class="field"><label>Date of Sacrifice *</label><input type="date" id="f-sacrifice" /></div>
+        <div class="field"><label>Litter / Group</label><input type="text" id="f-litter" placeholder="e.g. L3, Group-A" /></div>
+        <div class="field"><label>Cohort / Experiment</label><input type="text" id="f-cohort" placeholder="e.g. Exp-07, HFD-Study" /></div>
+      </div>
+      <p class="divider">Cohort tags</p>
+      <div class="field" style="max-width:500px;margin-bottom:1rem;">
+        <label>Tags (press Enter)</label>
+        <div class="tag-wrap" id="tag-wrap" onclick="document.getElementById('tag-input').focus()"><input type="text" id="tag-input" placeholder="e.g. high-fat-diet" onkeydown="handleTag(event)" /></div>
+      </div>
+      <p class="divider">Available samples</p>
+      <div class="sample-grid" id="sample-grid"></div>
+      <div class="field" style="max-width:500px;margin-bottom:1.25rem;"><label>Notes</label><input type="text" id="f-notes" placeholder="Optional notes" /></div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <button class="btn-primary" onclick="addRecord()">Add to Registry</button>
+        <div class="msg" id="add-msg"></div>
+      </div>
+    </div>
+
+    <div id="panel-import" class="panel">
+      <p class="divider">CSV bulk import</p>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:0.75rem;line-height:1.8;">Required column order:<br><code style="font-size:11px;background:var(--bg2);padding:4px 8px;border-radius:4px;display:inline-block;margin-top:4px;">Animal ID, Species, Date of Birth, Date of Sacrifice, Gender (M/F/U), Genotype, Litter, Cohort, Tags (;-sep), Samples (;-sep), Notes, Owner, Entered By</code></p>
+      <a class="link" onclick="downloadTemplate()">Download template CSV ↓</a>
+      <div class="drop-zone" id="drop-zone" style="margin-top:1rem;" onclick="document.getElementById('csv-file').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
+        <strong>🐭 Click to choose a CSV or drag &amp; drop here</strong>
+        <p>Duplicate Animal IDs will be skipped</p>
+        <input type="file" id="csv-file" accept=".csv" style="display:none" onchange="handleFileSelect(event)" />
+      </div>
+      <div id="import-preview" class="import-preview" style="display:none;"></div>
+      <div id="import-actions" style="display:none;gap:10px;flex-wrap:wrap;align-items:center;">
+        <button class="btn-primary" onclick="confirmImport()">Import Records</button>
+        <button class="btn-secondary" onclick="cancelImport()">Cancel</button>
+        <div class="msg" id="import-msg"></div>
+      </div>
+    </div>
+
+    <div id="panel-search" class="panel">
+      <div class="stats-row">
+        <div class="stat"><div class="stat-label">🐭 Total Animals</div><div class="stat-val" id="stat-total">—</div></div>
+        <div class="stat"><div class="stat-label">Male / Female</div><div class="stat-val" id="stat-mf">—</div></div>
+        <div class="stat"><div class="stat-label">Genotypes</div><div class="stat-val" id="stat-gt">—</div></div>
+        <div class="stat"><div class="stat-label">Owners</div><div class="stat-val" id="stat-owners">—</div></div>
+      </div>
+      <div class="search-row">
+        <div style="flex:2;min-width:160px;"><span class="filter-lbl">Search</span><input type="text" id="q-search" placeholder="ID, owner, genotype, tag..." oninput="renderTable()" /></div>
+        <div><span class="filter-lbl">Species</span><select id="q-species" onchange="renderTable()"><option value="">All</option><option>Mouse</option><option>Rat</option><option>Zebrafish</option><option>Rabbit</option><option>Other</option></select></div>
+        <div><span class="filter-lbl">Gender</span><select id="q-gender" onchange="renderTable()"><option value="">All</option><option value="M">Male</option><option value="F">Female</option><option value="U">Unknown</option></select></div>
+        <div><span class="filter-lbl">Genotype</span><select id="q-genotype" onchange="renderTable()"><option value="">All</option></select></div>
+        <div><span class="filter-lbl">Cohort</span><select id="q-cohort" onchange="renderTable()"><option value="">All</option></select></div>
+        <div><span class="filter-lbl">Owner</span><select id="q-owner" onchange="renderTable()"><option value="">All</option></select></div>
+        <div><span class="filter-lbl">Sample</span><select id="q-sample" onchange="renderTable()"><option value="">Any</option><option>Brain</option><option>Liver</option><option>Kidney</option><option>Blood</option><option>Spleen</option><option>Lung</option><option>Heart</option><option>Serum</option><option>Plasma</option><option>DNA</option><option>RNA</option><option>Muscle</option><option>Bone Marrow</option><option>Adipose Tissue</option><option>Pancreas</option><option>Intestine</option><option>CSF</option><option>Urine</option><option>Feces</option><option>Skin</option></select></div>
+        <div><span class="filter-lbl">Sacrifice from</span><input type="date" id="q-sac-from" onchange="renderTable()" style="min-width:140px;" /></div>
+        <div><span class="filter-lbl">Sacrifice to</span><input type="date" id="q-sac-to" onchange="renderTable()" style="min-width:140px;" /></div>
+      </div>
+      <div class="toolbar"><button class="btn-secondary" onclick="exportCSV()">Export CSV ↓</button></div>
+      <div class="table-wrap">
+        <table>
+          <thead id="thead"><tr>
+            <th onclick="sortBy('animal_id')">Animal ID<span class="si">↕</span></th>
+            <th onclick="sortBy('species')">Species<span class="si">↕</span></th>
+            <th onclick="sortBy('date_of_birth')">DOB<span class="si">↕</span></th>
+            <th onclick="sortBy('date_of_sacrifice')">Sacrifice<span class="si">↕</span></th>
+            <th>Age</th>
+            <th onclick="sortBy('gender')">Gender<span class="si">↕</span></th>
+            <th onclick="sortBy('genotype')">Genotype<span class="si">↕</span></th>
+            <th onclick="sortBy('litter_group')">Litter<span class="si">↕</span></th>
+            <th onclick="sortBy('cohort')">Cohort<span class="si">↕</span></th>
+            <th onclick="sortBy('owner')">Owner<span class="si">↕</span></th>
+            <th onclick="sortBy('entered_by')">Entered By<span class="si">↕</span></th>
+            <th>Tags</th><th>Samples</th><th>Notes</th><th></th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="empty-msg" style="display:none;">No records match.</div>
+    </div>
+
+    <div id="panel-charts" class="panel">
+      <div class="chart-controls">
+        <div class="field" style="min-width:200px;"><label class="filter-lbl">Group charts by</label>
+          <select id="chart-groupby" onchange="renderCharts()"><option value="genotype">Genotype</option><option value="cohort">Cohort / Experiment</option><option value="owner">Owner</option><option value="species">Species</option><option value="litter_group">Litter / Group</option></select>
+        </div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-card"><h3 id="ch1-title">Animals by genotype</h3><div id="ch-animals"></div></div>
+        <div class="chart-card"><h3>Gender distribution</h3><div id="ch-gender" class="donut-wrap"></div></div>
+      </div>
+      <div class="chart-grid" style="grid-template-columns:1fr;">
+        <div class="chart-card"><h3 id="ch2-title">Sample availability heatmap</h3><div id="ch-samples" style="overflow-x:auto;"></div></div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-card"><h3>Animals by owner</h3><div id="ch-owners"></div></div>
+        <div class="chart-card"><h3>Sacrifice timeline (by month)</h3><div id="ch-timeline"></div></div>
+      </div>
+    </div>
+
+    <div id="panel-phenotype" class="panel">
+      <p class="divider">Add phenotype note</p>
+      <div class="form-grid" style="margin-bottom:1rem;">
+        <div class="field"><label>Animal ID (optional)</label><select id="pn-animal"><option value="">— General —</option></select></div>
+        <div class="field"><label>Author / Observer</label><input type="text" id="pn-author" placeholder="Auto-filled with your name" /></div>
+        <div class="field"><label>Category</label><select id="pn-category"><option value="">General</option><option>Body weight</option><option>Coat &amp; skin</option><option>Behaviour</option><option>Histology</option><option>Biochemistry</option><option>Imaging</option><option>Survival</option><option>Other</option></select></div>
+        <div class="field"><label>Date</label><input type="date" id="pn-date" /></div>
+      </div>
+      <div class="field" style="margin-bottom:1.25rem;"><label>Observation / Note</label><textarea id="pn-body" placeholder="Describe the phenotype, observation, or experimental note..."></textarea></div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:2rem;">
+        <button class="btn-primary" onclick="addNote()">Save Note</button>
+        <div class="msg" id="pn-msg"></div>
+      </div>
+      <p class="divider">Notes log</p>
+      <div class="search-row" style="margin-bottom:1rem;">
+        <div style="flex:2;min-width:160px;"><span class="filter-lbl">Search notes</span><input type="text" id="pn-search" placeholder="keyword, author, animal..." oninput="renderNotes()" /></div>
+        <div><span class="filter-lbl">Category</span><select id="pn-cat-filter" onchange="renderNotes()"><option value="">All</option><option>Body weight</option><option>Coat &amp; skin</option><option>Behaviour</option><option>Histology</option><option>Biochemistry</option><option>Imaging</option><option>Survival</option><option>Other</option><option>General</option></select></div>
+        <div><span class="filter-lbl">Animal</span><select id="pn-animal-filter" onchange="renderNotes()"><option value="">All</option></select></div>
+      </div>
+      <div id="notes-list"></div>
+      <div class="empty" id="pn-empty" style="display:none;">No notes yet.</div>
+    </div>
+
+    <div id="panel-audit" class="panel">
+      <p class="divider">Activity log</p>
+      <div class="search-row" style="margin-bottom:1rem;">
+        <div style="flex:2;min-width:160px;"><span class="filter-lbl">Search log</span><input type="text" id="audit-search" placeholder="action, user, animal ID..." oninput="renderAudit()" /></div>
+        <div><span class="filter-lbl">User</span><select id="audit-user-filter" onchange="renderAudit()"><option value="">All users</option></select></div>
+      </div>
+      <div id="audit-list"></div>
+      <div class="empty" id="audit-empty" style="display:none;">No activity recorded yet.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="edit-modal" class="modal-backdrop" style="display:none;" onclick="if(event.target===this)closeEditModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2><span>🐭</span> Edit Record</h2>
+      <button class="modal-close" onclick="closeEditModal()">×</button>
+    </div>
+    <div class="owner-note" id="owner-note"></div>
+    <p class="divider">Ownership &amp; entry</p>
+    <div class="form-grid">
+      <div class="field"><label>Animal Owner *</label><input type="text" id="e-owner" /></div>
+      <div class="field"><label>Entered By</label><input type="text" id="e-enteredby" /></div>
+    </div>
+    <p class="divider">Animal information</p>
+    <div class="form-grid">
+      <div class="field"><label>Animal ID *</label><input type="text" id="e-id" /></div>
+      <div class="field"><label>Species *</label><select id="e-species"><option value="">Select</option><option>Mouse</option><option>Rat</option><option>Zebrafish</option><option>Rabbit</option><option>Other</option></select></div>
+      <div class="field"><label>Date of Birth *</label><input type="date" id="e-dob" /></div>
+      <div class="field"><label>Gender *</label><select id="e-gender"><option value="">Select</option><option value="M">Male</option><option value="F">Female</option><option value="U">Unknown</option></select></div>
+      <div class="field"><label>Genotype *</label><input type="text" id="e-genotype" /></div>
+      <div class="field"><label>Date of Sacrifice *</label><input type="date" id="e-sacrifice" /></div>
+      <div class="field"><label>Litter / Group</label><input type="text" id="e-litter" /></div>
+      <div class="field"><label>Cohort / Experiment</label><input type="text" id="e-cohort" /></div>
+    </div>
+    <p class="divider">Cohort tags</p>
+    <div class="field" style="max-width:500px;margin-bottom:1rem;">
+      <label>Tags (press Enter)</label>
+      <div class="tag-wrap" id="e-tag-wrap" onclick="document.getElementById('e-tag-input').focus()"><input type="text" id="e-tag-input" placeholder="e.g. high-fat-diet" onkeydown="handleEditTag(event)" /></div>
+    </div>
+    <p class="divider">Available samples</p>
+    <div class="sample-grid" id="e-sample-grid"></div>
+    <div class="field" style="max-width:500px;margin-bottom:1.5rem;"><label>Notes</label><input type="text" id="e-notes" /></div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <button class="btn-primary" id="save-edit-btn" onclick="saveEdit()">Save Changes</button>
+      <button class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+      <div class="msg" id="edit-msg"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
