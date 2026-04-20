@@ -1,5 +1,5 @@
 // ── Supabase ───────────────────────────────────────────────────────────────────
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const SAMPLE_KEYS = ['brain','liver','kidney','blood','spleen','lung','heart','serum','plasma',
@@ -68,15 +68,15 @@ async function showApp() {
   updateStats(); renderTable(); renderNotes(); renderCharts(); renderAudit(); populateAnimalSelects();
 
   // Realtime
-  supabase.channel('animals-ch')
+  db.channel('animals-ch')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'animals' }, () => {
       fetchRecords().then(() => { updateStats(); renderTable(); renderCharts(); populateAnimalSelects(); });
     }).subscribe();
-  supabase.channel('notes-ch')
+  db.channel('notes-ch')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'phenotype_notes' }, () => {
       fetchNotes().then(() => renderNotes());
     }).subscribe();
-  supabase.channel('audit-ch')
+  db.channel('audit-ch')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_log' }, p => {
       auditLog.unshift(p.new); renderAudit();
     }).subscribe();
@@ -84,22 +84,22 @@ async function showApp() {
 
 // ── Fetch ──────────────────────────────────────────────────────────────────────
 async function fetchRecords() {
-  const { data, error } = await supabase.from('animals').select('*').order('created_at', { ascending: false });
+  const { data, error } = await db.from('animals').select('*').order('created_at', { ascending: false });
   if (error) throw error;
   records = data || [];
 }
 async function fetchNotes() {
-  const { data, error } = await supabase.from('phenotype_notes').select('*').order('created_at', { ascending: false });
+  const { data, error } = await db.from('phenotype_notes').select('*').order('created_at', { ascending: false });
   if (error) throw error;
   notes = data || [];
 }
 async function fetchAudit() {
-  const { data, error } = await supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(300);
+  const { data, error } = await db.from('audit_log').select('*').order('created_at', { ascending: false }).limit(300);
   if (error) throw error;
   auditLog = data || [];
 }
 async function logAudit(action, detail) {
-  await supabase.from('audit_log').insert({ user_name: currentUser.name, action, detail });
+  await db.from('audit_log').insert({ user_name: currentUser.name, action, detail });
 }
 
 // ── Sample grids ───────────────────────────────────────────────────────────────
@@ -230,7 +230,7 @@ async function addRecord() {
     entered_by: v('f-enteredby') || currentUser.name,
     tags: [...currentTags], samples, notes: v('f-notes'), created_by: currentUser.name
   };
-  const { error } = await supabase.from('animals').insert(row);
+  const { error } = await db.from('animals').insert(row);
   if (error) { showMsg('add-msg', 'Error: ' + error.message, 'danger'); return; }
 
   // Save to recall
@@ -348,7 +348,7 @@ async function saveEdit() {
     updated_at: new Date().toISOString()
   };
 
-  const { error } = await supabase.from('animals').update(updates).eq('id', editingId);
+  const { error } = await db.from('animals').update(updates).eq('id', editingId);
   if (error) { showMsg('edit-msg', 'Error: ' + error.message, 'danger'); return; }
 
   await logAudit('EDIT_RECORD', `Edited animal ${animal_id} (${genotype})`);
@@ -481,7 +481,7 @@ function renderTable() {
 async function deleteRecord(id) {
   const rec = records.find(r => r.id === id);
   if (!confirm(`Delete record for ${rec?.animal_id}?`)) return;
-  const { error } = await supabase.from('animals').delete().eq('id', id);
+  const { error } = await db.from('animals').delete().eq('id', id);
   if (error) { alert('Error: ' + error.message); return; }
   await logAudit('DELETE_RECORD', `Deleted animal ${rec?.animal_id} (${rec?.genotype})`);
 }
@@ -533,7 +533,7 @@ function parseCSV(text){
 function csvSplit(line){const cols=[];let cur='',inQ=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'&&!inQ)inQ=true;else if(ch==='"'&&inQ&&line[i+1]==='"'){cur+='"';i++;}else if(ch==='"'&&inQ)inQ=false;else if(ch===','&&!inQ){cols.push(cur.trim());cur='';}else cur+=ch;}cols.push(cur.trim());return cols;}
 async function confirmImport(){
   if(!pendingImport.length){showMsg('import-msg','Nothing to import.','danger');return;}
-  const{error}=await supabase.from('animals').insert(pendingImport);
+  const{error}=await db.from('animals').insert(pendingImport);
   if(error){showMsg('import-msg','Error: '+error.message,'danger');return;}
   await logAudit('BULK_IMPORT',`Imported ${pendingImport.length} records`);
   showMsg('import-msg',`Imported ${pendingImport.length} records.`,'success');
@@ -589,7 +589,7 @@ async function addNote(){
   const body=document.getElementById('pn-body').value.trim();
   if(!body){showMsg('pn-msg','Please enter an observation.','danger');return;}
   const row={animal_id:document.getElementById('pn-animal').value||null,author:v('pn-author')||currentUser.name,category:document.getElementById('pn-category').value||'General',note_date:document.getElementById('pn-date').value||today(),body,created_by:currentUser.name};
-  const{error}=await supabase.from('phenotype_notes').insert(row);
+  const{error}=await db.from('phenotype_notes').insert(row);
   if(error){showMsg('pn-msg','Error: '+error.message,'danger');return;}
   await logAudit('ADD_NOTE',`Added ${row.category} note${row.animal_id?' for '+row.animal_id:''}`);
   document.getElementById('pn-body').value='';document.getElementById('pn-animal').value='';document.getElementById('pn-date').value=today();document.getElementById('pn-category').value='';document.getElementById('pn-author').value=currentUser.name;
@@ -603,7 +603,7 @@ function renderNotes(){
   empty.style.display='none';
   list.innerHTML=filtered.map(n=>`<div class="note-card"><div class="note-hdr"><div><span style="font-size:13px;font-weight:500;">${esc(n.category)}</span>${n.animal_id?`<span style="margin-left:8px;" class="chip chip-entry">${esc(n.animal_id)}</span>`:''}<div class="note-meta">${n.note_date}${n.author?' · '+esc(n.author):''}</div></div><button class="btn-del" onclick="deleteNote('${n.id}')">×</button></div><div class="note-body">${esc(n.body)}</div></div>`).join('');
 }
-async function deleteNote(id){if(!confirm('Delete this note?'))return;const{error}=await supabase.from('phenotype_notes').delete().eq('id',id);if(error){alert('Error: '+error.message);return;}await logAudit('DELETE_NOTE','Deleted a phenotype note');}
+async function deleteNote(id){if(!confirm('Delete this note?'))return;const{error}=await db.from('phenotype_notes').delete().eq('id',id);if(error){alert('Error: '+error.message);return;}await logAudit('DELETE_NOTE','Deleted a phenotype note');}
 
 // ── Audit Log ──────────────────────────────────────────────────────────────────
 function renderAudit(){
