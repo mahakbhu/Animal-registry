@@ -664,44 +664,49 @@ function renderCharts(){
 }
 
 function renderGenderByCohort(){
-  const el=document.getElementById('ch-gender-cohort');
-  const sel=document.getElementById('ch-cohort-filter');
-  // Populate the cohort dropdown
-  const cohorts=['All',...[...new Set(records.map(r=>r.cohort).filter(Boolean))].sort()];
-  const cur=sel.value;
-  sel.innerHTML=cohorts.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
-  if(cur&&cohorts.includes(cur))sel.value=cur;
+  const el  = document.getElementById('ch-gender-cohort');
+  const sel = document.getElementById('ch-cohort-filter');
 
-  const chosen=sel.value||'All';
-  const subset=chosen==='All'?records:records.filter(r=>r.cohort===chosen);
-  if(!subset.length){el.innerHTML='<div class="empty" style="padding:1.5rem;">No data for this selection.</div>';return;}
+  // Save chosen value BEFORE rebuilding the dropdown
+  const prev = sel.value;
+  const cohorts = ['All', ...[...new Set(records.map(r => r.cohort).filter(Boolean))].sort()];
+  sel.innerHTML = cohorts.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  // Restore selection if it still exists, otherwise default to All
+  if (prev && cohorts.includes(prev)) sel.value = prev;
+  else sel.value = 'All';
 
-  // Stacked bar: one bar per cohort group showing M/F/U breakdown
-  const groups=chosen==='All'
-    ? [...new Set(records.map(r=>r.cohort||'(no cohort)'))].sort()
+  const chosen = sel.value;
+
+  // Which cohort groups to display
+  const groups = chosen === 'All'
+    ? cohorts.filter(c => c !== 'All')
     : [chosen];
 
-  const maxCount=Math.max(...groups.map(g=>{
-    const items=records.filter(r=>(r.cohort||'(no cohort)')===g);
-    return items.length;
-  }),1);
+  if (!groups.length) {
+    el.innerHTML = '<div class="empty" style="padding:1.5rem;">No cohorts recorded yet.</div>';
+    return;
+  }
 
-  el.innerHTML=groups.map(g=>{
-    const items=records.filter(r=>(r.cohort||'(no cohort)')===g);
-    const m=items.filter(r=>r.gender==='M').length;
-    const f=items.filter(r=>r.gender==='F').length;
-    const u=items.filter(r=>r.gender==='U').length;
-    const total=items.length;
-    const pctM=Math.round(m/total*100),pctF=Math.round(f/total*100),pctU=Math.round(u/total*100);
-    return `<div style="margin-bottom:10px;">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
-        <div style="font-size:11px;color:var(--text);min-width:120px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;" title="${esc(g)}">${esc(g)}</div>
-        <div style="flex:1;height:18px;border-radius:3px;overflow:hidden;display:flex;">
-          ${m>0?`<div style="width:${Math.round(m/maxCount*100)}%;background:#185FA5;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;">${m}</div>`:''}
-          ${f>0?`<div style="width:${Math.round(f/maxCount*100)}%;background:#993556;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;">${f}</div>`:''}
-          ${u>0?`<div style="width:${Math.round(u/maxCount*100)}%;background:#888780;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;">${u}</div>`:''}
+  const maxCount = Math.max(...groups.map(g =>
+    records.filter(r => (r.cohort || '') === g).length
+  ), 1);
+
+  el.innerHTML = groups.map(g => {
+    const items = records.filter(r => (r.cohort || '') === g);
+    if (!items.length) return '';
+    const m = items.filter(r => r.gender === 'M').length;
+    const f = items.filter(r => r.gender === 'F').length;
+    const u = items.filter(r => r.gender === 'U').length;
+    const total = items.length;
+    return `<div style="margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-size:11px;color:var(--text);min-width:130px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;" title="${esc(g)}">${esc(g)}</div>
+        <div style="flex:1;height:20px;border-radius:4px;overflow:hidden;display:flex;background:var(--bg2);">
+          ${m > 0 ? `<div style="width:${Math.round(m/maxCount*100)}%;background:#185FA5;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;font-weight:500;">${m}</div>` : ''}
+          ${f > 0 ? `<div style="width:${Math.round(f/maxCount*100)}%;background:#993556;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;font-weight:500;">${f}</div>` : ''}
+          ${u > 0 ? `<div style="width:${Math.round(u/maxCount*100)}%;background:#888780;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;font-weight:500;">${u}</div>` : ''}
         </div>
-        <div style="font-size:11px;color:var(--text2);white-space:nowrap;">${total} total</div>
+        <div style="font-size:11px;color:var(--text2);white-space:nowrap;min-width:50px;">${m}M ${f}F${u > 0 ? ` ${u}U` : ''} — ${total} total</div>
       </div>
     </div>`;
   }).join('');
