@@ -296,7 +296,24 @@
       </div>
       <div class="chart-grid">
         <div class="chart-card"><h3 id="ch1-title">Animals by genotype</h3><div id="ch-animals"></div></div>
-        <div class="chart-card"><h3>Gender distribution</h3><div id="ch-gender" class="donut-wrap"></div></div>
+        <div class="chart-card"><h3>Gender distribution (all animals)</h3><div id="ch-gender" class="donut-wrap"></div></div>
+      </div>
+      <div class="chart-grid" style="grid-template-columns:1fr;">
+        <div class="chart-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:1.25rem;">
+            <h3 style="margin-bottom:0;">Gender breakdown by cohort / experiment</h3>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:10px;letter-spacing:0.07em;text-transform:uppercase;color:var(--text2);">Filter:</span>
+              <select id="ch-cohort-filter" onchange="renderGenderByCohort()" style="font-family:var(--font);font-size:12px;padding:5px 8px;border:0.5px solid var(--border2);border-radius:6px;background:var(--bg);color:var(--text);outline:none;"></select>
+            </div>
+          </div>
+          <div style="display:flex;gap:16px;margin-bottom:1rem;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px;"><div style="width:10px;height:10px;border-radius:2px;background:#185FA5;"></div>Male</div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px;"><div style="width:10px;height:10px;border-radius:2px;background:#993556;"></div>Female</div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px;"><div style="width:10px;height:10px;border-radius:2px;background:#888780;"></div>Unknown</div>
+          </div>
+          <div id="ch-gender-cohort"></div>
+        </div>
       </div>
       <div class="chart-grid" style="grid-template-columns:1fr;">
         <div class="chart-card"><h3 id="ch2-title">Sample availability heatmap</h3><div id="ch-samples" style="overflow-x:auto;"></div></div>

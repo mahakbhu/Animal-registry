@@ -601,14 +601,26 @@ function downloadTemplate(){
 function handleFileSelect(e){if(e.target.files[0])readCSVFile(e.target.files[0]);}
 function handleDrop(e){e.preventDefault();document.getElementById('drop-zone').classList.remove('drag');if(e.dataTransfer.files[0])readCSVFile(e.dataTransfer.files[0]);}
 function readCSVFile(f){const r=new FileReader();r.onload=e=>processCSV(e.target.result);r.readAsText(f);}
+function isExactDuplicate(row) {
+  // A duplicate requires animal_id AND all key fields to match an existing record
+  return records.some(r =>
+    r.animal_id           === row.animal_id &&
+    r.species             === row.species &&
+    r.date_of_birth       === row.date_of_birth &&
+    r.date_of_sacrifice   === row.date_of_sacrifice &&
+    r.gender              === row.gender &&
+    r.genotype            === row.genotype &&
+    (r.owner||'')         === (row.owner||'')
+  );
+}
+
 function processCSV(text){
   const parsed=parseCSV(text);
-  const existing=new Set(records.map(r=>r.animal_id));
-  const dupes=parsed.filter(r=>existing.has(r.animal_id));
-  const fresh=parsed.filter(r=>!existing.has(r.animal_id));
+  const dupes=parsed.filter(r=>isExactDuplicate(r));
+  const fresh=parsed.filter(r=>!isExactDuplicate(r));
   const prev=document.getElementById('import-preview');
   prev.style.display='block';
-  prev.textContent=`Parsed ${parsed.length} rows → ${fresh.length} new, ${dupes.length} duplicate (skipped)\n\nPreview:\n`+fresh.slice(0,3).map(r=>`  ${r.animal_id} | ${r.species} | ${r.genotype}`).join('\n');
+  prev.textContent=`Parsed ${parsed.length} rows → ${fresh.length} new, ${dupes.length} exact duplicate (skipped)\n\nPreview:\n`+fresh.slice(0,3).map(r=>`  ${r.animal_id} | ${r.species} | ${r.genotype}`).join('\n');
   document.getElementById('import-actions').style.display='flex';
   pendingImport=fresh;
 }
@@ -644,8 +656,55 @@ function renderCharts(){
   document.getElementById('ch1-title').textContent=`Animals by ${label.toLowerCase()}`;
   document.getElementById('ch2-title').textContent=`Sample availability by ${label.toLowerCase()}`;
   const grp=groupRecords(key),maxV=grp.length&&grp[0][1].length?grp[0][1].length:1;
-  renderBarChart('ch-animals',grp,maxV);renderGenderDonut();renderSampleHeatmap(key);
+  renderBarChart('ch-animals',grp,maxV);
+  renderGenderDonut();
+  renderGenderByCohort();
+  renderSampleHeatmap(key);
   const og=groupRecords('owner');renderBarChart('ch-owners',og,og.length?(og[0][1].length||1):1);renderTimeline();
+}
+
+function renderGenderByCohort(){
+  const el=document.getElementById('ch-gender-cohort');
+  const sel=document.getElementById('ch-cohort-filter');
+  // Populate the cohort dropdown
+  const cohorts=['All',...[...new Set(records.map(r=>r.cohort).filter(Boolean))].sort()];
+  const cur=sel.value;
+  sel.innerHTML=cohorts.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  if(cur&&cohorts.includes(cur))sel.value=cur;
+
+  const chosen=sel.value||'All';
+  const subset=chosen==='All'?records:records.filter(r=>r.cohort===chosen);
+  if(!subset.length){el.innerHTML='<div class="empty" style="padding:1.5rem;">No data for this selection.</div>';return;}
+
+  // Stacked bar: one bar per cohort group showing M/F/U breakdown
+  const groups=chosen==='All'
+    ? [...new Set(records.map(r=>r.cohort||'(no cohort)'))].sort()
+    : [chosen];
+
+  const maxCount=Math.max(...groups.map(g=>{
+    const items=records.filter(r=>(r.cohort||'(no cohort)')===g);
+    return items.length;
+  }),1);
+
+  el.innerHTML=groups.map(g=>{
+    const items=records.filter(r=>(r.cohort||'(no cohort)')===g);
+    const m=items.filter(r=>r.gender==='M').length;
+    const f=items.filter(r=>r.gender==='F').length;
+    const u=items.filter(r=>r.gender==='U').length;
+    const total=items.length;
+    const pctM=Math.round(m/total*100),pctF=Math.round(f/total*100),pctU=Math.round(u/total*100);
+    return `<div style="margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+        <div style="font-size:11px;color:var(--text);min-width:120px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;" title="${esc(g)}">${esc(g)}</div>
+        <div style="flex:1;height:18px;border-radius:3px;overflow:hidden;display:flex;">
+          ${m>0?`<div style="width:${Math.round(m/maxCount*100)}%;background:#185FA5;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;">${m}</div>`:''}
+          ${f>0?`<div style="width:${Math.round(f/maxCount*100)}%;background:#993556;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;">${f}</div>`:''}
+          ${u>0?`<div style="width:${Math.round(u/maxCount*100)}%;background:#888780;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;">${u}</div>`:''}
+        </div>
+        <div style="font-size:11px;color:var(--text2);white-space:nowrap;">${total} total</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 function renderBarChart(cid,entries,maxVal){
   const el=document.getElementById(cid);
